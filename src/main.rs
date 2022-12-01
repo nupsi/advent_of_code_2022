@@ -1,5 +1,6 @@
+mod day1;
 mod reader;
 
 fn main() {
-    println!("Hello, world!");
+    day1::run();
 }
