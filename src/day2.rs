@@ -1,48 +1,31 @@
 use crate::reader;
+use std::str::FromStr;
+use std::string::ParseError;
 
-type Round = (Shape, Shape);
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum Shape {
-    Rock = 1,
-    Paper = 2,
-    Scissors = 3,
+#[derive(Debug)]
+struct Round {
+    elf: Shape,
+    player: Shape,
 }
 
-impl Shape {
-    fn from(str: &str) -> Shape {
-        match str {
-            "A" | "X" => Shape::Rock,
-            "B" | "Y" => Shape::Paper,
-            "C" | "Z" => Shape::Scissors,
-            _ => panic!("Unable create shape from: '{:?}'.", str),
-        }
+impl FromStr for Round {
+    type Err = ParseError;
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        let (elf, player) = str.split_once(" ").unwrap();
+        Ok(Self {
+            elf: elf.parse().unwrap(),
+            player: player.parse().unwrap(),
+        })
+    }
+}
+
+impl Round {
+    fn play_round(&self) -> usize {
+        self.player.score() + self.get_score()
     }
 
-    fn score(&self) -> usize {
-        *self as usize
-    }
-
-    fn play(player: Shape, elf: Shape) -> usize {
-        player.score() + Shape::outcome(player, elf)
-    }
-
-    fn play_expected(expected: Shape, elf: Shape) -> usize {
-        match (expected, elf) {
-            (Self::Rock, Shape::Rock) => Shape::play(Shape::Scissors, elf),
-            (Self::Rock, Shape::Paper) => Shape::play(Shape::Rock, elf),
-            (Self::Rock, Shape::Scissors) => Shape::play(Shape::Paper, elf),
-
-            (Self::Paper, n) => Shape::play(n.to_owned(), elf),
-
-            (Self::Scissors, Shape::Rock) => Shape::play(Shape::Paper, elf),
-            (Self::Scissors, Shape::Paper) => Shape::play(Shape::Scissors, elf),
-            (Self::Scissors, Shape::Scissors) => Shape::play(Shape::Rock, elf),
-        }
-    }
-
-    fn outcome(player: Shape, elf: Shape) -> usize {
-        match (elf, player) {
+    fn get_score(&self) -> usize {
+        match (self.elf, self.player) {
             (Shape::Rock, Shape::Paper)
             | (Shape::Paper, Shape::Scissors)
             | (Shape::Scissors, Shape::Rock) => 6,
@@ -51,6 +34,48 @@ impl Shape {
             | (Shape::Scissors, Shape::Paper) => 0,
             _ => 3,
         }
+    }
+
+    fn expected_outcome_to_actual(&self) -> Self {
+        Self {
+            elf: self.elf,
+            player: match (self.player, self.elf) {
+                (Shape::Rock, Shape::Rock) => Shape::Scissors,
+                (Shape::Rock, Shape::Paper) => Shape::Rock,
+                (Shape::Rock, Shape::Scissors) => Shape::Paper,
+
+                (Shape::Paper, n) => n,
+
+                (Shape::Scissors, Shape::Rock) => Shape::Paper,
+                (Shape::Scissors, Shape::Paper) => Shape::Scissors,
+                (Shape::Scissors, Shape::Scissors) => Shape::Rock,
+            },
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Shape {
+    Rock = 1,
+    Paper = 2,
+    Scissors = 3,
+}
+
+impl FromStr for Shape {
+    type Err = ParseError;
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        match str {
+            "A" | "X" => Ok(Shape::Rock),
+            "B" | "Y" => Ok(Shape::Paper),
+            "C" | "Z" => Ok(Shape::Scissors),
+            _ => panic!("Unable create shape from: '{:?}'.", str),
+        }
+    }
+}
+
+impl Shape {
+    fn score(&self) -> usize {
+        *self as usize
     }
 }
 
@@ -63,25 +88,17 @@ pub fn run() {
 }
 
 fn input() -> Vec<Round> {
-    reader::open("files/day2.txt").parse_lines(parse_line)
+    reader::open("files/day2.txt").lines_as()
 }
 
-fn parse_line(line: &str) -> Round {
-    let (elf, player) = line.split_once(" ").unwrap();
-    (Shape::from(player), Shape::from(elf))
+fn part_one(rounds: Vec<Round>) -> usize {
+    rounds.iter().map(|round| round.play_round()).sum()
 }
 
-fn part_one(values: Vec<Round>) -> usize {
-    values
-        .into_iter()
-        .map(|(player, elf)| Shape::play(player, elf))
-        .sum()
-}
-
-fn part_two(values: Vec<Round>) -> usize {
-    values
-        .into_iter()
-        .map(|(expected, elf)| Shape::play_expected(expected, elf))
+fn part_two(rounds: Vec<Round>) -> usize {
+    rounds
+        .iter()
+        .map(|round| round.expected_outcome_to_actual().play_round())
         .sum()
 }
 
@@ -97,5 +114,5 @@ fn test_part_two() {
 
 #[cfg(test)]
 fn get_test_input() -> Vec<Round> {
-    reader::open("files/day2_test.txt").parse_lines(parse_line)
+    reader::open("files/day2_test.txt").lines_as()
 }

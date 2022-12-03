@@ -1,21 +1,26 @@
 use crate::reader;
+use std::str::FromStr;
+use std::string::ParseError;
 
 struct Rucksack {
     chars: Vec<char>,
 }
 
-impl Rucksack {
-    fn from(str: &str) -> Self {
-        Self {
+impl FromStr for Rucksack {
+    type Err = ParseError;
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        Ok(Self {
             chars: str.chars().collect(),
-        }
+        })
     }
+}
 
-    fn find_common_elements(left: Vec<char>, rigth: Vec<char>) -> Vec<char> {
+impl Rucksack {
+    fn find_common_elements(left: &Vec<char>, rigth: &Vec<char>) -> Vec<char> {
         let mut result = Vec::new();
         for char in left {
             if rigth.contains(&char) {
-                result.push(char);
+                result.push(*char);
             }
         }
         result
@@ -26,7 +31,7 @@ impl Rucksack {
         while groups.len() > 1 {
             groups = groups
                 .windows(2)
-                .map(|groups| Self::find_common_elements(groups[0].to_owned(), groups[1].to_owned()))
+                .map(|groups| Self::find_common_elements(&groups[0], &groups[1]))
                 .collect()
         }
         groups.into_iter().next().unwrap()
@@ -59,7 +64,7 @@ pub fn run() {
 }
 
 fn input() -> Vec<Rucksack> {
-    reader::open("files/day3.txt").parse_lines(Rucksack::from)
+    reader::open("files/day3.txt").lines_as()
 }
 
 fn part_one(values: Vec<Rucksack>) -> usize {
@@ -94,5 +99,5 @@ fn test_part_two() {
 
 #[cfg(test)]
 fn get_test_input() -> Vec<Rucksack> {
-    reader::open("files/day3_test.txt").parse_lines(Rucksack::from)
+    reader::open("files/day3_test.txt").lines_as()
 }
