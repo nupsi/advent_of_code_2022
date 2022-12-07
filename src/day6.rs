@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::reader;
 
 pub fn run() {
@@ -35,7 +33,14 @@ fn solve(input: String, n: usize) -> usize {
 }
 
 fn are_all_charachters_unique(str: &[char]) -> bool {
-    str.into_iter().collect::<HashSet<&char>>().len() == str.len()
+    let mut bitmask = 0;
+    str.iter()
+        .map(|char| (*char as usize) - ('a' as usize))
+        .all(|offset| {
+            let is_unique = bitmask & (1 << offset) == 0;
+            bitmask |= 1 << offset;
+            is_unique
+        })
 }
 
 #[test]
