@@ -1,8 +1,5 @@
 use crate::reader;
 
-use std::str::FromStr;
-use std::string::ParseError;
-
 trait TreeUtils {
     fn get_child_index(&self, current: usize, child_name: String) -> usize;
     fn update_item_sizes(self, i: usize) -> Self;
@@ -45,19 +42,18 @@ struct Node {
     is_dir: bool,
 }
 
-impl FromStr for Node {
-    type Err = ParseError;
-    fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let (left, rigth) = str.split_once(" ").unwrap();
+impl From<String> for Node {
+    fn from(input: String) -> Self {
+        let (left, rigth) = input.split_once(" ").unwrap();
         let is_dir = left == "dir";
-        Ok(Self {
+        Self {
             index: 0,
             parent: 0,
             name: rigth.to_string(),
             children: Vec::new(),
             size: left.parse().unwrap_or(0),
             is_dir,
-        })
+        }
     }
 }
 
@@ -70,23 +66,20 @@ impl Node {
 
 #[derive(Debug)]
 enum Command {
-    List,
+    None,
     MoveDown(String),
     MoveUp,
-    MoveRoot,
 }
 
-impl FromStr for Command {
-    type Err = ParseError;
-    fn from_str(str: &str) -> Result<Self, Self::Err> {
-        Ok(match str[2..].split_once(" ") {
+impl From<String> for Command {
+    fn from(input: String) -> Self {
+        match input[2..].split_once(" ") {
             Some((_, name)) => match name {
                 ".." => Command::MoveUp,
-                "/" => Command::MoveRoot,
                 name => Command::MoveDown(name.to_string()),
             },
-            None => Command::List,
-        })
+            None => Command::None,
+        }
     }
 }
 
@@ -95,13 +88,12 @@ enum Line {
     Output(Node),
 }
 
-impl FromStr for Line {
-    type Err = ParseError;
-    fn from_str(str: &str) -> Result<Self, Self::Err> {
-        if str.starts_with("$") {
-            Ok(Line::Input(str.parse().unwrap()))
+impl From<String> for Line {
+    fn from(input: String) -> Self {
+        if input.starts_with("$") {
+            Line::Input(input.into())
         } else {
-            Ok(Line::Output(str.parse().unwrap()))
+            Line::Output(input.into())
         }
     }
 }
@@ -121,7 +113,6 @@ fn input() -> Vec<String> {
 fn part_one(commands: Vec<String>) -> usize {
     parse_commands(commands)
         .into_iter()
-        .filter(|dir| dir.is_dir)
         .filter(|dir| dir.size <= 100_000)
         .map(|dir| dir.size)
         .sum()
@@ -133,7 +124,6 @@ fn part_two(commands: Vec<String>) -> usize {
     let required_space = 3_000_0000 - current_space;
     commands
         .into_iter()
-        .filter(|dir| dir.is_dir)
         .filter(|dir| dir.size >= required_space)
         .map(|dir| dir.size)
         .reduce(|acc, cur| std::cmp::min(acc, cur))
@@ -141,11 +131,11 @@ fn part_two(commands: Vec<String>) -> usize {
 }
 
 fn parse_commands(commands: Vec<String>) -> Vec<Node> {
-    let init = (0, vec![Node::from_str("dir /").unwrap()]);
+    let init = (0, vec![Node::from("dir /".to_string())]);
     commands
         .into_iter()
         .skip(1)
-        .map(|line| line.parse::<Line>().unwrap())
+        .map(|line| line.into())
         .fold(init, |(index, mut nodes), command| match command {
             Line::Input(command) => match command {
                 Command::MoveDown(child_name) => (nodes.get_child_index(index, child_name), nodes),

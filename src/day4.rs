@@ -7,14 +7,13 @@ struct Range {
     end: u32,
 }
 
-impl FromStr for Range {
-    type Err = ParseError;
-    fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let (start, end) = str.split_once("-").unwrap();
-        Ok(Self {
+impl From<&str> for Range {
+    fn from(input: &str) -> Self {
+        let (start, end) = input.split_once("-").unwrap();
+        Self {
             start: start.parse().unwrap(),
             end: end.parse().unwrap(),
-        })
+        }
     }
 }
 
@@ -38,8 +37,8 @@ impl FromStr for Section {
     fn from_str(str: &str) -> Result<Self, Self::Err> {
         let (left, rigth) = str.split_once(",").unwrap();
         Ok(Self {
-            left: left.parse().unwrap(),
-            right: rigth.parse().unwrap(),
+            left: left.into(),
+            right: rigth.into(),
         })
     }
 }

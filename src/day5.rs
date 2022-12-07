@@ -1,8 +1,5 @@
 use crate::reader;
 
-use std::str::FromStr;
-use std::string::ParseError;
-
 #[derive(Debug)]
 struct Move {
     count: usize,
@@ -10,25 +7,24 @@ struct Move {
     target: usize,
 }
 
-impl FromStr for Move {
-    type Err = ParseError;
-    fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let mut parts = str
+impl From<&str> for Move {
+    fn from(input: &str) -> Self {
+        let mut parts = input
             .split_whitespace()
             .map(|part| part.parse())
             .filter(|result| result.is_ok())
             .map(|result| result.unwrap());
-        Ok(Self {
+        Self {
             count: parts.next().unwrap(),
             source: parts.next().unwrap() - 1,
             target: parts.next().unwrap() - 1,
-        })
+        }
     }
 }
 
 impl Move {
     fn parse_moves(moves: &str) -> Vec<Move> {
-        moves.lines().map(|line| line.parse().unwrap()).collect()
+        moves.lines().map(|line| line.into()).collect()
     }
 }
 
