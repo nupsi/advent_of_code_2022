@@ -39,6 +39,70 @@ impl Reader {
             .collect()
     }
 
+    /// Current content divided by empty lines and the resulting blocks
+    /// parsed into the given type.
+    /// 
+    /// Single block can still contain multiple lines.
+    /// Line changes `\r\n` will be replaced by `\n`.
+    /// ## Example
+    /// ```rs
+    /// // file.txt
+    /// // 1
+    /// //
+    /// // 2
+    /// //
+    /// // 3
+    /// open("file.txt").split_on_empty_line_into::<usize>()
+    /// // [1, 2, 3]
+    /// ```
+    /// ## Note
+    /// You can provide support for custom structs by implementing the `FromStr` trait.
+    /// ```
+    /// use std::{str::FromStr, string::ParseError};
+    /// 
+    /// struct Example {
+    ///     a: usize,
+    ///     b: usize,
+    /// }
+    ///
+    /// impl FromStr for Example {
+    ///     type Err = ParseError;
+    ///     fn from_str(str: &str) -> Result<Self, Self::Err> {
+    ///         let mut iter = str.lines().into_iter();
+    ///         Ok(Self {
+    ///             a: iter.next().unwrap()[4..].parse().unwrap(),
+    ///             b: iter.next().unwrap()[4..].parse().unwrap(),
+    ///         })
+    ///     }
+    /// }
+    ///
+    /// // input.txt
+    /// // a = 1
+    /// // b = 2
+    /// //
+    /// // a = 3
+    /// // b = 4
+    /// open("input.txt").split_on_empty_line_into::<Example>()
+    /// // [Example { a: 1, b: 2 }, Example { a: 3, b: 4 }]
+    /// ```
+    pub fn split_on_empty_line_into<T>(self) -> Vec<T>
+    where
+        T: core::str::FromStr,
+    {
+        self.text
+            .replace("\r\n", "\n")
+            .split("\n\n")
+            .map(|part| match part.parse::<T>() {
+                Ok(value) => value,
+                _ => panic!(
+                    "Unable to parse \"{:?}\" into the given type \"{:?}\".",
+                    part,
+                    std::any::type_name::<T>()
+                ),
+            })
+            .collect()
+    }
+
     /// Process the file content as a single string, splitting it on a given pattern, and
     /// parsing the resulting parts into the given type.
     /// ## Example
@@ -63,8 +127,8 @@ impl Reader {
     ///     fn from_str(str: &str) -> Result<Self, Self::Err> {
     ///         let (a, b) = str.split_once(" ").unwrap();
     ///         Ok(Self {
-    ///             a: a.parse::<usize>().unwrap(),
-    ///             b: b.parse::<usize>().unwrap(),
+    ///             a: a.parse().unwrap(),
+    ///             b: b.parse().unwrap(),
     ///         })
     ///     }
     /// }
@@ -116,8 +180,8 @@ impl Reader {
     ///     fn from_str(str: &str) -> Result<Self, Self::Err> {
     ///         let (a, b) = str.split_once(" ").unwrap();
     ///         Ok(Self {
-    ///             a: a.parse::<usize>().unwrap(),
-    ///             b: b.parse::<usize>().unwrap(),
+    ///             a: a.parse().unwrap(),
+    ///             b: b.parse().unwrap(),
     ///         })
     ///     }
     /// }
@@ -148,7 +212,7 @@ impl Reader {
     /// ## Example
     /// ```
     /// fn my_parse_function(str: &str) -> usize {
-    ///     str.parse::<usize>().unwrap_or(0)
+    ///     str.parse().unwrap_or(0)
     /// }
     ///
     /// // input.txt
@@ -170,8 +234,8 @@ impl Reader {
     ///     fn from_str(str: &str) -> Self {
     ///         let (a, b) = str.split_once(" ").unwrap();
     ///         Self {
-    ///             a: a.parse::<usize>().unwrap(),
-    ///             b: b.parse::<usize>().unwrap(),
+    ///             a: a.parse().unwrap(),
+    ///             b: b.parse().unwrap(),
     ///         }
     ///     }
     /// }
