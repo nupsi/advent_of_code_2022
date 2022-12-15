@@ -13,7 +13,7 @@ struct Sensor {
 impl FromStr for Sensor {
     type Err = ParseError;
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let (sensor_str, beacon_str) = str.split_once(":").unwrap();
+        let (sensor_str, beacon_str) = str.split_once(':').unwrap();
         let (sx, sy) = sensor_str[10..].split_once(", ").unwrap();
         let (bx, by) = beacon_str[22..].split_once(", ").unwrap();
         let (sx, sy): Point = (sx[2..].parse().unwrap(), sy[2..].parse().unwrap());
@@ -70,7 +70,7 @@ fn fill_ranges(ranges: &mut Vec<Point>, sensors: &Vec<Sensor>, y: isize, min: is
     }
 }
 
-fn eval_range(ranges: &mut Vec<Point>) -> Point {
+fn eval_range(ranges: &mut [Point]) -> Point {
     ranges.sort();
     let (left, mut right) = (ranges[0].0, ranges[0].1);
     for range in ranges.iter().skip(1) {

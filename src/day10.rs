@@ -10,7 +10,7 @@ enum Instruction {
 impl FromStr for Instruction {
     type Err = ParseError;
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        Ok(match str.split_once(" ") {
+        Ok(match str.split_once(' ') {
             Some((_, value)) => Instruction::Add(value.parse().unwrap()),
             None => Instruction::Noop,
         })
@@ -44,11 +44,11 @@ fn part_two(values: Vec<Instruction>) -> String {
         .into_iter()
         .enumerate()
         .map(|(i, x)| ((i as i32) % 40, x))
-        .map(|(i, x)| if i >= x - 1 && i <= x + 1 { '#' } else { '.' })
+        .map(|(i, x)| if (x - i).abs() < 2 { '#' } else { '.' })
         .take(240)
         .collect::<Vec<char>>()
         .chunks(40)
-        .map(|chunk| chunk.into_iter().collect())
+        .map(|chunk| chunk.iter().collect())
         .collect::<Vec<String>>()
         .join("\n")
 }

@@ -9,7 +9,7 @@ struct Range {
 
 impl From<&str> for Range {
     fn from(input: &str) -> Self {
-        let (start, end) = input.split_once("-").unwrap();
+        let (start, end) = input.split_once('-').unwrap();
         Self {
             start: start.parse().unwrap(),
             end: end.parse().unwrap(),
@@ -35,7 +35,7 @@ struct Section {
 impl FromStr for Section {
     type Err = ParseError;
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let (left, rigth) = str.split_once(",").unwrap();
+        let (left, rigth) = str.split_once(',').unwrap();
         Ok(Self {
             left: left.into(),
             right: rigth.into(),

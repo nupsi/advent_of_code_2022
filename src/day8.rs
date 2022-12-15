@@ -18,10 +18,7 @@ impl Visibility {
     }
 
     fn is_visible(&self) -> bool {
-        match self {
-            Self::Visible(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Visible(_))
     }
 }
 
@@ -34,7 +31,7 @@ enum Trace {
 }
 
 impl Trace {
-    fn get_points(&self) -> Vec<(usize, usize)> {
+    fn get_points(&self) -> Vec<Point> {
         match self {
             Self::U(n, r) => (r.start..r.end).map(|i| (*n, i)).rev().collect(),
             Self::D(n, r) => ((r.start + 1)..r.end).map(|i| (*n, i)).collect(),
@@ -78,11 +75,11 @@ impl Forest {
             .product()
     }
 
-    fn trace(&self, v: usize, trace: Trace) -> Visibility {
+    fn trace(&self, value: usize, trace: Trace) -> Visibility {
         let mut distance = 0;
         for point in trace.get_points() {
             distance += 1;
-            if self.get_value(point) >= &v {
+            if self.get_value(point) >= &value {
                 return Visibility::Blocked(distance);
             }
         }

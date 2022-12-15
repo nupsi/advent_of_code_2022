@@ -12,8 +12,7 @@ impl From<&str> for Move {
         let mut parts = input
             .split_whitespace()
             .map(|part| part.parse())
-            .filter(|result| result.is_ok())
-            .map(|result| result.unwrap());
+            .filter_map(|result| result.ok());
         Self {
             count: parts.next().unwrap(),
             source: parts.next().unwrap() - 1,
@@ -80,7 +79,7 @@ impl Crane {
         for turn in self.moves {
             let source = crates[turn.source].clone();
             let (head, tail) = source.split_at(source.len() - turn.count);
-            crates[turn.target].append(&mut tail.to_owned().into_iter().rev().collect());
+            crates[turn.target].append(&mut tail.iter().copied().rev().collect());
             crates[turn.source] = head.to_vec();
         }
         Self::select_last(crates)

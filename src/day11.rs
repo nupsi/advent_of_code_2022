@@ -11,7 +11,7 @@ struct Operation {
 
 impl From<&str> for Operation {
     fn from(str: &str) -> Self {
-        let mut iter = str[19..].split(" ").into_iter();
+        let mut iter = str[19..].split(' ');
         Self {
             lhs: iter.next().unwrap().parse().unwrap_or(0),
             operator: iter.next().unwrap().chars().next().unwrap(),
@@ -71,7 +71,7 @@ struct Monkey {
 impl FromStr for Monkey {
     type Err = ParseError;
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let mut iter = str.lines().into_iter();
+        let mut iter = str.lines();
         iter.next().unwrap();
         let items = iter.next().unwrap()[18..]
             .split(", ")

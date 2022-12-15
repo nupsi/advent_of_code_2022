@@ -11,7 +11,7 @@ struct Round {
 impl FromStr for Round {
     type Err = ParseError;
     fn from_str(str: &str) -> Result<Self, Self::Err> {
-        let (elf, player) = str.split_once(" ").unwrap();
+        let (elf, player) = str.split_once(' ').unwrap();
         Ok(Self {
             elf: elf.parse().unwrap(),
             player: player.parse().unwrap(),
