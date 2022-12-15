@@ -1,25 +1,26 @@
 use crate::reader;
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::string::ParseError;
 
-const X_OFFSET: usize = 300;
+type Point = (isize, isize);
+type Map = HashSet<Point>;
 
-type Point = (usize, usize);
-type Size = (usize, usize);
-type Map = Vec<Vec<char>>;
-
-trait Utils {
-    fn is_free(&self, point: &Point) -> bool;
-    fn set_point(&mut self, x: usize, y: usize, value: char);
+enum Bottom {
+    Void(isize),
+    Floor(isize),
 }
 
-impl Utils for Map {
-    fn is_free(&self, (x, y): &Point) -> bool {
-        self[*y][*x] == '.'
+impl Bottom {
+    fn value(&self) -> isize {
+        match self {
+            Self::Floor(n) => *n,
+            Self::Void(n) => *n,
+        }
     }
 
-    fn set_point(&mut self, x: usize, y: usize, value: char) {
-        self[y][x] = value;
+    fn is_floor(&self) -> bool {
+        matches!(self, Self::Floor(_))
     }
 }
 
@@ -35,7 +36,7 @@ impl FromStr for Scan {
             points: str
                 .split(" -> ")
                 .map(|part| {
-                    let (x, y) = part.split_once(",").unwrap();
+                    let (x, y) = part.split_once(',').unwrap();
                     (x.parse().unwrap(), y.parse().unwrap())
                 })
                 .collect(),
@@ -44,20 +45,22 @@ impl FromStr for Scan {
 }
 
 impl Scan {
-    fn draw(&self, mut map: Map) -> Map {
+    fn draw(&self, map: &mut HashSet<Point>) -> isize {
+        let mut max_y_value = 0;
         for window in self.points.windows(2) {
             let (start, end) = (&window[0], &window[1]);
             let min_x = std::cmp::min(start.0, end.0);
             let max_x = std::cmp::max(start.0, end.0);
             let min_y = std::cmp::min(start.1, end.1);
             let max_y = std::cmp::max(start.1, end.1);
+            max_y_value = std::cmp::max(max_y_value, max_y);
             for y in min_y..=max_y {
                 for x in min_x..=max_x {
-                    map.set_point(x, y, '#');
+                    map.insert((x, y));
                 }
             }
         }
-        map
+        max_y_value
     }
 }
 
@@ -74,89 +77,53 @@ fn input() -> Vec<Scan> {
 }
 
 fn part_one(scans: Vec<Scan>) -> usize {
-    let (starting_point, mut map) = get_initial_values(scans);
-    (0..)
-        .skip_while(|_| drop_sand(&starting_point, &mut map))
-        .next()
-        .unwrap()
+    let (y, mut map) = scans_to_map(scans);
+    let bottom = Bottom::Void(y + 1);
+    (0..).find(|_| !drop(&bottom, &mut map)).unwrap()
 }
 
 fn part_two(scans: Vec<Scan>) -> usize {
-    let (starting_point, mut map) = get_initial_values(scans);
-    map.push((0..=map[0].len()).into_iter().map(|_| '#').collect());
-    (0..)
-        .skip_while(|_| drop_sand(&starting_point, &mut map))
-        .next()
-        .unwrap()
+    let (y, mut map) = scans_to_map(scans);
+    let bottom = Bottom::Floor(y + 2);
+    (0..).find(|_| !drop(&bottom, &mut map)).unwrap()
 }
 
-fn get_initial_values(scans: Vec<Scan>) -> (Point, Map) {
-    let (points, bounds) = relocate(scans);
-    (
-        (500 - X_OFFSET + 1, 1),
-        points
-            .into_iter()
-            .fold(initialize_map(&bounds), |map, scan| scan.draw(map)),
-    )
+fn scans_to_map(scans: Vec<Scan>) -> (isize, Map) {
+    let mut map = HashSet::new();
+    let mut max_y = 0;
+    for scan in scans {
+        let cur_y = scan.draw(&mut map);
+        max_y = std::cmp::max(max_y, cur_y);
+    }
+    (max_y, map)
 }
 
-fn initialize_map(bounds: &Size) -> Map {
-    (0..=bounds.1)
-        .into_iter()
-        .map(|_| (0..=bounds.0).into_iter().map(|_| '.').collect())
-        .collect()
-}
-
-fn drop_sand(point: &Point, map: &mut Map) -> bool {
-    if !map.is_free(&point) {
+fn drop(bottom: &Bottom, map: &mut Map) -> bool {
+    let mut point = (500, 0);
+    if map.contains(&point) {
         return false;
     }
-    
-    let mut point = (point.0, point.1);
-    loop {
-        if map.is_free(&(point.0, point.1 + 1)) {
-            point.1 += 1;
-        } else if map.is_free(&(point.0 - 1, point.1 + 1)) {
-            point.0 -= 1;
-            point.1 += 1;
-        } else if map.is_free(&(point.0 + 1, point.1 + 1)) {
-            point.0 += 1;
-            point.1 += 1;
-        } else {
-            break;
+    while let Some(next) = try_get_next_point(&point, map) {
+        if next.1 >= bottom.value() {
+            if bottom.is_floor() {
+                break;
+            } else {
+                return false
+            }
         }
-
-        if point.1 + 1 == map.len() {
-            return false;
-        }
+        point = next;
     }
-    map[point.1][point.0] = 'O';
+    map.insert(point);
     true
 }
 
-fn relocate(scans: Vec<Scan>) -> (Vec<Scan>, Size) {
-    let mut bounds = (0, 0);
-
-    for scan in &scans {
-        for point in &scan.points {
-            bounds.0 = std::cmp::max(bounds.0, point.0);
-            bounds.1 = std::cmp::max(bounds.1, point.1 + 2);
+fn try_get_next_point((x, y): &Point, map: &Map) -> Option<Point> {
+    for (n, m) in [(0, 1), (-1, 1), (1, 1)] {
+        if !map.contains(&(x + n, y + m)) {
+            return Some((x + n, y + m))
         }
     }
-
-    (
-        scans
-            .into_iter()
-            .map(|scan| Scan {
-                points: scan
-                    .points
-                    .into_iter()
-                    .map(|point| (1 + point.0 - X_OFFSET, 1 + point.1))
-                    .collect(),
-            })
-            .collect(),
-        bounds,
-    )
+    None
 }
 
 #[test]
