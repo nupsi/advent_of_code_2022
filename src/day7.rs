@@ -1,102 +1,5 @@
 use crate::reader;
-
-trait TreeUtils {
-    fn get_child_index(&self, current: usize, child_name: String) -> usize;
-    fn update_item_sizes(self, i: usize) -> Self;
-    fn get_dirs(self) -> Self;
-}
-
-impl TreeUtils for Vec<Node> {
-    fn get_child_index(&self, current: usize, child_name: String) -> usize {
-        *self[current]
-            .children
-            .iter()
-            .filter(|child| self[**child].name == child_name)
-            .next()
-            .unwrap()
-    }
-
-    fn update_item_sizes(self, i: usize) -> Self {
-        let mut result = self;
-        if result[i].is_dir && result[i].size == 0 {
-            for child in result[i].children.clone().into_iter() {
-                result = result.update_item_sizes(child);
-                result[i].size += result[child].size;
-            }
-        }
-        result
-    }
-
-    fn get_dirs(self) -> Self {
-        self.into_iter().filter(|node| node.is_dir).collect()
-    }
-}
-
-#[derive(Debug)]
-struct Node {
-    index: usize,
-    name: String,
-    parent: usize,
-    children: Vec<usize>,
-    size: usize,
-    is_dir: bool,
-}
-
-impl From<String> for Node {
-    fn from(input: String) -> Self {
-        let (left, rigth) = input.split_once(" ").unwrap();
-        let is_dir = left == "dir";
-        Self {
-            index: 0,
-            parent: 0,
-            name: rigth.to_string(),
-            children: Vec::new(),
-            size: left.parse().unwrap_or(0),
-            is_dir,
-        }
-    }
-}
-
-impl Node {
-    fn update(&mut self, index: usize, parent: usize) {
-        self.index = index;
-        self.parent = parent;
-    }
-}
-
-#[derive(Debug)]
-enum Command {
-    None,
-    MoveDown(String),
-    MoveUp,
-}
-
-impl From<String> for Command {
-    fn from(input: String) -> Self {
-        match input[2..].split_once(" ") {
-            Some((_, name)) => match name {
-                ".." => Command::MoveUp,
-                name => Command::MoveDown(name.to_string()),
-            },
-            None => Command::None,
-        }
-    }
-}
-
-enum Line {
-    Input(Command),
-    Output(Node),
-}
-
-impl From<String> for Line {
-    fn from(input: String) -> Self {
-        if input.starts_with("$") {
-            Line::Input(input.into())
-        } else {
-            Line::Output(input.into())
-        }
-    }
-}
+use std::collections::HashMap;
 
 pub fn run() {
     println!(
@@ -111,47 +14,47 @@ fn input() -> Vec<String> {
 }
 
 fn part_one(commands: Vec<String>) -> usize {
-    parse_commands(commands)
-        .into_iter()
-        .filter(|dir| dir.size <= 100_000)
-        .map(|dir| dir.size)
+    parse_commands(commands).into_values()
+        .filter(|size| size <= &100_000)
         .sum()
 }
 
 fn part_two(commands: Vec<String>) -> usize {
-    let commands = parse_commands(commands);
-    let current_space = 7_0000_000 - commands[0].size;
-    let required_space = 3_000_0000 - current_space;
-    commands
-        .into_iter()
-        .filter(|dir| dir.size >= required_space)
-        .map(|dir| dir.size)
-        .reduce(|acc, cur| std::cmp::min(acc, cur))
+    let dir = parse_commands(commands);
+    let required = 30_000_000 - (70_000_000 - *dir.get("/").unwrap());
+    dir.into_values()
+        .filter(|size| size >= &required)
+        .reduce(std::cmp::min)
         .unwrap()
 }
 
-fn parse_commands(commands: Vec<String>) -> Vec<Node> {
-    let init = (0, vec![Node::from("dir /".to_string())]);
-    commands
+fn parse_commands(lines: Vec<String>) -> HashMap<String, usize> {
+    lines
         .into_iter()
-        .skip(1)
-        .map(|line| line.into())
-        .fold(init, |(index, mut nodes), command| match command {
-            Line::Input(command) => match command {
-                Command::MoveDown(child_name) => (nodes.get_child_index(index, child_name), nodes),
-                Command::MoveUp => (nodes[index].parent, nodes),
-                _ => (index, nodes),
+        .rev()
+        .fold(
+            (HashMap::new(), 0),
+            |(mut dir, mut size), command| match command.starts_with('$') {
+                true => match command[2..].split_once(' ') {
+                    Some((_, c)) => match c {
+                        ".." => (dir, size),
+                        c => {
+                            dir.insert(c.to_owned(), size);
+                            (dir, 0)
+                        }
+                    },
+                    None => (dir, size),
+                },
+                false => {
+                    size += match command.split_once(' ').unwrap() {
+                        ("dir", d) => *dir.get(d).unwrap(),
+                        (s, _) => s.parse().unwrap(),
+                    };
+                    (dir, size)
+                }
             },
-            Line::Output(mut child) => {
-                child.update(nodes.len(), index);
-                nodes[index].children.push(*&child.index);
-                nodes.push(child);
-                (index, nodes)
-            }
-        })
-        .1
-        .update_item_sizes(0)
-        .get_dirs()
+        )
+        .0
 }
 
 #[test]
