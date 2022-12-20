@@ -1,4 +1,5 @@
 use crate::reader;
+use std::collections::VecDeque;
 
 type Pair = (usize, isize);
 
@@ -26,12 +27,12 @@ fn part_two(values: Vec<Pair>) -> isize {
     count_result(mix(values, 811_589_153, 10))
 }
 
-fn mix(original: Vec<Pair>, decryption_key: isize, mix_times: usize) -> Vec<Pair> {
+fn mix(original: Vec<Pair>, decryption_key: isize, mix_times: usize) -> VecDeque<Pair> {
     let mut values = original
         .iter()
         .copied()
         .map(|(i, n)| (i, n * decryption_key))
-        .collect::<Vec<Pair>>();
+        .collect::<VecDeque<Pair>>();
     let len = values.len() as isize - 1;
 
     for _ in 0..mix_times {
@@ -42,29 +43,29 @@ fn mix(original: Vec<Pair>, decryption_key: isize, mix_times: usize) -> Vec<Pair
             if end_index <= 0 {
                 end_index += len;
             }
-            let removed = values.remove(start_index);
+            let removed = values.remove(start_index).unwrap();
             values.insert(end_index as usize, removed);
         }
     }
     values
 }
 
-fn count_result(values: Vec<Pair>) -> isize {
+fn count_result(values: VecDeque<Pair>) -> isize {
     let zero_index = index_of_value(&values, 0);
     vec![1000, 2000, 3000].into_iter().fold(0, |sum, offset| {
         sum + values[(zero_index + offset) % values.len()].1
     })
 }
 
-fn index_of(vec: &[Pair], f: impl Fn(&Pair) -> bool) -> usize {
+fn index_of(vec: &VecDeque<Pair>, f: impl Fn(&Pair) -> bool) -> usize {
     vec.iter().enumerate().find(|(_, x)| f(x)).unwrap().0
 }
 
-fn index_of_key(vec: &[Pair], key: usize) -> usize {
+fn index_of_key(vec: &VecDeque<Pair>, key: usize) -> usize {
     index_of(vec, |(k, _)| *k == key)
 }
 
-fn index_of_value(vec: &[Pair], value: isize) -> usize {
+fn index_of_value(vec: &VecDeque<Pair>, value: isize) -> usize {
     index_of(vec, |(_, v)| *v == value)
 }
 
