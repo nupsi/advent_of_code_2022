@@ -1,5 +1,4 @@
 use crate::reader;
-use core::panic;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::string::ParseError;
@@ -32,6 +31,14 @@ impl Job {
             Job::Number(_) => None,
         }
     }
+
+    fn op(&self) -> &str {
+        if let Self::Operator(_, op, _) = self {
+            &op
+        } else {
+            panic!("Unable to find job operator!")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -60,41 +67,6 @@ impl Monkey {
                 values.insert(self.name.to_string(), *n);
                 *n
             }
-        }
-    }
-
-    fn form_expr(
-        &self,
-        lookup: &HashMap<String, Monkey>,
-        values: &HashMap<String, isize>,
-        path: &Vec<String>,
-    ) -> String {
-        if self.name == "humn" {
-            return "x".to_string();
-        }
-
-        match &self.job {
-            Job::Operator(lhs, op, rhs) => {
-                let l = if path.contains(lhs) {
-                    lookup.get(lhs).unwrap().form_expr(lookup, values, path)
-                } else {
-                    values.get(lhs).unwrap().to_string()
-                };
-                let r = if path.contains(rhs) {
-                    lookup.get(rhs).unwrap().form_expr(lookup, values, path)
-                } else {
-                    values.get(rhs).unwrap().to_string()
-                };
-                match op.as_str() {
-                    "+" => format!("({} + {})", l, r),
-                    "*" => format!("({} * {})", l, r),
-                    "-" => format!("({} - {})", l, r),
-                    "/" => format!("({} / {})", l, r),
-                    "=" => format!("({} = {})", l, r),
-                    _ => panic!("Unkown operator!"),
-                }
-            }
-            Job::Number(n) => n.to_string(),
         }
     }
 
@@ -164,7 +136,7 @@ fn part_two(values: Vec<Monkey>) -> isize {
         .map(|monkey| (monkey.name.to_string(), monkey))
         .collect::<HashMap<String, Monkey>>();
 
-    let path_to_me = lookup
+    let path_to_humn = lookup
         .get("root")
         .unwrap()
         .get_path(&lookup, Vec::new())
@@ -172,29 +144,55 @@ fn part_two(values: Vec<Monkey>) -> isize {
 
     let mut values = HashMap::new();
     lookup.get("root").unwrap().eval(&lookup, &mut values);
+    resolve("root".to_string(), 0, &path_to_humn, &lookup, &values) as isize
+}
 
-    let (lhs, rhs) = lookup.get("root").unwrap().job.get_children().unwrap();
-    println!(
-        "{} = {}",
-        values.get(&"zhfp".to_string()).unwrap(),
-        values.get(&"hghd".to_string()).unwrap()
-    );
+fn resolve(
+    current: String,
+    previous_value: isize,
+    path: &Vec<String>,
+    lookup: &HashMap<String, Monkey>,
+    values: &HashMap<String, isize>,
+) -> isize {
+    let job = &lookup.get(&current).unwrap().job;
+    if let Some((left, right)) = job.get_children() {
+        let (lhs, rhs) = (*values.get(&left).unwrap(), *values.get(&right).unwrap());
+        let (next, value, magic) = if path.contains(&left) {
+            (left, rhs, 0)
+        } else {
+            (right, lhs, 1)
+        };
 
-    let (humn_branch, correct_branch) = if path_to_me.contains(&lhs) {
-        (lhs, rhs)
+        if current == "root" {
+            resolve(next, value, path, lookup, values)
+        } else {
+            let result = eval(previous_value, inverse(job.op()), value, magic);
+            resolve(next, result, path, lookup, values)
+        }
     } else {
-        (rhs, lhs)
-    };
+        previous_value
+    }
+}
 
-    println!(
-        "{} = {}",
-        values.get(&correct_branch).unwrap(),
-        lookup
-            .get(&humn_branch)
-            .unwrap()
-            .form_expr(&lookup, &values, &path_to_me)
-    );
-    0
+fn inverse(str: &str) -> &str {
+    match str {
+        "+" => "-",
+        "-" => "+",
+        "*" => "/",
+        "/" => "*",
+        _ => panic!("Unkown operator!"),
+    }
+}
+
+fn eval(lhs: isize, op: &str, rhs: isize, magic: usize) -> isize {
+    match (op, magic) {
+        ("+", 1) => rhs - lhs,
+        ("+", _) => rhs + lhs,
+        ("-", _) => lhs - rhs,
+        ("*", _) => lhs * rhs,
+        ("/", _) => lhs / rhs,
+        _ => panic!("Unkown operator!"),
+    }
 }
 
 #[test]
