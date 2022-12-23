@@ -1,8 +1,30 @@
 # Advent of Code 2022
 
+Rust Version 1.66.0
+
 ## Template
 ```rs
 use crate::reader;
+use std::str::FromStr;
+use std::string::ParseError;
+
+type Point = (isize, isize);
+
+struct Example {
+    left: String,
+    right: String,
+}
+
+impl FromStr for Example {
+    type Err = ParseError;
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        let (left, right) = str.split_once(' ').unwrap();
+        Ok(Self {
+            left: left.to_string(),
+            right: right.to_string(),
+        })
+    }
+}
 
 pub fn run() {
     println!(
@@ -12,15 +34,15 @@ pub fn run() {
     );
 }
 
-fn input() -> Vec<String> {
-    reader::open("files/day.txt").lines()
+fn input() -> Vec<Example> {
+    reader::open("files/day.txt").lines_as()
 }
 
-fn part_one(values: Vec<String>) -> usize {
+fn part_one(values: Vec<Example>) -> usize {
     0
 }
 
-fn part_two(values: Vec<String>) -> usize {
+fn part_two(values: Vec<Example>) -> usize {
     0
 }
 
@@ -35,7 +57,7 @@ fn test_part_two() {
 }
 
 #[cfg(test)]
-fn get_test_input() -> Vec<String> {
-    reader::open("files/day_test.txt").lines()
+fn get_test_input() -> Vec<Example> {
+    reader::open("files/day_test.txt").lines_as()
 }
 ```
