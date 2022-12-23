@@ -1,5 +1,5 @@
 use crate::reader;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, LinkedList};
 use std::str::FromStr;
 use std::string::ParseError;
 
@@ -8,8 +8,8 @@ struct Valve {
     name: String,
     output: usize,
     named_outputs: Vec<String>,
-    outputs: Vec<usize>,
-    w_outputs: Vec<(usize, usize)>,
+    i_outputs: Vec<(usize, isize)>,
+    n_outputs: Vec<(String, isize)>,
 }
 
 impl FromStr for Valve {
@@ -23,9 +23,24 @@ impl FromStr for Valve {
                 .split(',')
                 .map(|part| part.trim().to_string())
                 .collect(),
-            outputs: Vec::new(),
-            w_outputs: Vec::new(),
+            i_outputs: Vec::new(),
+            n_outputs: Vec::new(),
         })
+    }
+}
+
+trait ValveUtils {
+    fn index_of(&self, name: &String) -> usize;
+}
+
+impl ValveUtils for Vec<Valve> {
+    fn index_of(&self, name: &String) -> usize {
+        for (i, valve) in self.iter().enumerate() {
+            if &valve.name == name {
+                return i;
+            }
+        }
+        panic!("unable to find index");
     }
 }
 
@@ -42,11 +57,21 @@ fn input() -> Vec<Valve> {
 }
 
 fn part_one(valves: Vec<Valve>) -> usize {
-    dfs(1, 0, 0, 0, &0, &process(valves), &mut HashMap::new()).unwrap_or(0)
+    let valves = process(valves);
+    dfs(30, valves.len() - 1, &0, &valves, &mut HashMap::new())
 }
 
 fn part_two(valves: Vec<Valve>) -> usize {
-    dfs2(1, 0, 0, 0, 0, &0, &process(valves), &mut HashMap::new()).unwrap_or(0)
+    let valves = process(valves);
+    let mut cache = HashMap::new();
+    let mut max = 0;
+    let end = (1 << (valves.len() - 1)) - 1;
+    for i in 0..(end + 1) / 2 {
+        let x = dfs(26, valves.len() - 1, &i, &valves, &mut cache);
+        let y = dfs(26, valves.len() - 1, &(end ^ i), &valves, &mut cache);
+        max = std::cmp::max(max, x + y);
+    }
+    max
 }
 
 fn can_open(position: usize, open_valves: usize) -> bool {
@@ -58,197 +83,82 @@ fn new_mask(position: usize, open_valves: usize) -> usize {
 }
 
 fn process(mut valves: Vec<Valve>) -> Vec<Valve> {
-    valves.sort_by(|a, b| a.name.cmp(&b.name));
-    let conversion_lookup = valves
-        .iter()
-        .enumerate()
-        .map(|(i, valve)| (valve.name.to_string(), i))
-        .collect::<HashMap<String, usize>>();
+    let first = valves.remove(valves.index_of(&"AA".to_string()));
+    valves.push(first);
+    for index in 0..valves.len() {
+        valves[index].n_outputs = reduce_edges(valves[index].name.to_string(), &valves);
+    }
+
     let mut output = valves
         .into_iter()
-        .map(|mut current| {
-            current.outputs = current
-                .named_outputs
-                .iter()
-                .map(|name| *conversion_lookup.get(name).unwrap())
-                .collect();
-            current
-        })
+        .filter(|valve| valve.output > 0 || valve.name == "AA")
         .collect::<Vec<Valve>>();
+
     for index in 0..output.len() {
-        output[index].w_outputs = reduce_edges(index, 1, &mut 0, &output);
+        output[index].i_outputs = output[index]
+            .n_outputs
+            .iter()
+            .map(|(name, w)| (output.index_of(name), *w))
+            .collect();
     }
+
     output
 }
 
-fn reduce_edges(
-    src: usize,
-    cost: usize,
-    visited: &mut usize,
-    lookup: &Vec<Valve>,
-) -> Vec<(usize, usize)> {
+fn reduce_edges(initial: String, lookup: &Vec<Valve>) -> Vec<(String, isize)> {
     let mut result = Vec::new();
-    if (1 << src) & *visited != 0 {
-        return result;
-    }
-    *visited |= 1 << src;
-    for edge in &lookup[src].outputs {
-        if *&lookup[*edge].output > 0 {
-            result.push((*edge, cost));
-        } else {
-            result.extend(reduce_edges(*edge, cost + 1, visited, lookup));
+    let mut visited = HashSet::new();
+    let mut queue = LinkedList::new();
+    queue.push_back((initial, 1));
+
+    while let Some((current, distance)) = queue.pop_front() {
+        for edge in lookup[lookup.index_of(&current)].named_outputs.to_vec() {
+            if visited.contains(&edge) {
+                continue;
+            }
+            visited.insert(edge.to_string());
+
+            if lookup[lookup.index_of(&edge)].output > 0 {
+                result.push((edge.to_string(), distance));
+            }
+            queue.push_back((edge.to_string(), distance + 1));
         }
     }
+
     result
 }
 
 fn dfs(
-    minute: usize,
+    minute: isize,
     index: usize,
-    flow_rate: usize,
-    current_score: usize,
     open_valves: &usize,
     valve_lookup: &Vec<Valve>,
-    cache: &mut HashMap<(usize, usize, usize), usize>,
-) -> Option<usize> {
-    if minute > 30 {
-        return Some(current_score);
+    cache: &mut HashMap<(isize, usize, usize), usize>,
+) -> usize {
+    let key = (minute, index, *open_valves);
+    if let Some(known_result) = cache.get(&key) {
+        return *known_result;
     }
 
-    let key = (minute, flow_rate, index);
-    if let Some(cached_value) = cache.get(&key) {
-        if cached_value >= &current_score {
-            return None;
+    let mut result = 0;
+    for (next, w) in &valve_lookup[index].i_outputs {
+        if !can_open(*next, *open_valves) {
+            continue;
         }
-    }
-    cache.insert(key, current_score);
 
-    let current_valve = &valve_lookup[index];
-
-    let open_current = if current_valve.output > 0 && can_open(index, *open_valves) {
-        dfs(
-            minute + 1,
-            index,
-            flow_rate + current_valve.output,
-            current_score + flow_rate,
-            &new_mask(index, *open_valves),
-            valve_lookup,
-            cache,
-        )
-    } else {
-        None
-    };
-
-    current_valve
-        .w_outputs
-        .iter()
-        .filter_map(|(next_valve, distance)| {
-            let possible = std::cmp::min(31, minute + *distance) - minute;
-            dfs(
-                minute + possible,
-                *next_valve,
-                flow_rate,
-                current_score + (flow_rate * possible),
-                open_valves,
-                valve_lookup,
-                cache,
-            )
-        })
-        .max()
-        .max(open_current)
-}
-
-fn dfs2(
-    minute: usize,
-    a_index: usize,
-    b_index: usize,
-    flow_rate: usize,
-    current_score: usize,
-    open_valves: &usize,
-    valve_lookup: &Vec<Valve>,
-    cache: &mut HashMap<(usize, usize, usize, usize), usize>,
-) -> Option<usize> {
-    if minute > 26 {
-        return Some(current_score);
-    }
-
-    let cache_key = (minute, flow_rate, a_index, b_index);
-    if let Some(cached_value) = cache.get(&cache_key) {
-        if *cached_value >= current_score {
-            return None;
+        let time = minute - *w - 1;
+        if time <= 0 {
+            continue;
         }
-    }
-    cache.insert(cache_key, current_score);
 
-    let a_flow_rate = valve_lookup[a_index].output;
-    let b_flow_rate = valve_lookup[b_index].output;
-    let can_open_a_valve = a_flow_rate > 0 && can_open(a_index, *open_valves);
-    let can_open_b_valve = b_flow_rate > 0 && can_open(b_index, *open_valves);
-
-    let mut results = Vec::new();
-
-    if can_open_a_valve {
-        let new_open_valves = new_mask(a_index, *open_valves);
-        for next_index in &valve_lookup[b_index].outputs {
-            results.push(dfs2(
-                minute + 1,
-                a_index,
-                *next_index,
-                flow_rate + a_flow_rate,
-                current_score + flow_rate,
-                &new_open_valves,
-                valve_lookup,
-                cache,
-            ));
-        }
+        let new_valves = new_mask(*next, *open_valves);
+        let open = dfs(time, *next, &new_valves, valve_lookup, cache);
+        let score = valve_lookup[*next].output * (time as usize);
+        result = std::cmp::max(result, open + score);
     }
 
-    if can_open_b_valve {
-        let new_open_valves = new_mask(b_index, *open_valves);
-        for new_my_location in &valve_lookup[a_index].outputs {
-            results.push(dfs2(
-                minute + 1,
-                *new_my_location,
-                b_index,
-                flow_rate + b_flow_rate,
-                current_score + flow_rate,
-                &new_open_valves,
-                valve_lookup,
-                cache,
-            ));
-        }
-    }
-
-    if can_open_b_valve && can_open_a_valve && a_index != b_index {
-        let new_open_valves = new_mask(a_index, new_mask(b_index, *open_valves));
-        results.push(dfs2(
-            minute + 1,
-            a_index,
-            b_index,
-            flow_rate + a_flow_rate + b_flow_rate,
-            current_score + flow_rate,
-            &new_open_valves,
-            valve_lookup,
-            cache,
-        ));
-    }
-
-    for next_b_index in &valve_lookup[b_index].outputs {
-        for next_a_index in &valve_lookup[a_index].outputs {
-            results.push(dfs2(
-                minute + 1,
-                *next_a_index,
-                *next_b_index,
-                flow_rate,
-                current_score + flow_rate,
-                open_valves,
-                valve_lookup,
-                cache,
-            ));
-        }
-    }
-
-    results.into_iter().flatten().max()
+    cache.insert(key, result);
+    result
 }
 
 #[test]
