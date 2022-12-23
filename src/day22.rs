@@ -46,7 +46,7 @@ struct Input {
 
 impl From<String> for Input {
     fn from(input: String) -> Self {
-        let (map, moves) = input.split_once("\r\n\r\n").unwrap();
+        let (map, moves) = input.split_once("\n\n").unwrap();
         Self {
             map: map.into(),
             moves: Self::parse_moves(moves),

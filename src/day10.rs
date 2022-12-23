@@ -76,9 +76,7 @@ fn test_part_one() {
 fn test_part_two() {
     assert_eq!(
         part_two(get_test_input()),
-        reader::open("files/day10_out.txt")
-            .text()
-            .replace("\r\n", "\n")
+        reader::open("files/day10_out.txt").text()
     );
 }
 

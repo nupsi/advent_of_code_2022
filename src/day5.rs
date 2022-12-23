@@ -35,7 +35,7 @@ struct Crane {
 
 impl From<String> for Crane {
     fn from(input: String) -> Self {
-        let (crates, moves) = input.split_once("\r\n\r\n").unwrap();
+        let (crates, moves) = input.split_once("\n\n").unwrap();
         Self {
             crates: Crane::parse_crates(crates),
             moves: Move::parse_moves(moves),

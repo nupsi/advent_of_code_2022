@@ -53,9 +53,12 @@ impl From<String> for Forest {
             width: input.lines().next().unwrap().len(),
             heigth: input.lines().count(),
             trees: input
-                .replace("\r\n", "")
+                .replace("\n", "")
                 .chars()
-                .map(|char| (char as usize) - ('0' as usize))
+                .map(|char| {
+                    println!("{:?} -> {}", char, char as usize);
+                    (char as usize) - ('0' as usize)
+                })
                 .collect(),
         }
     }

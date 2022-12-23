@@ -10,12 +10,12 @@ pub struct Reader {
 impl Reader {
     /// Current content as a single `String`.
     pub fn text(self) -> String {
-        self.text
+        self.text.replace("\r\n", "\n")
     }
 
     /// Current content lines as a `Vec<String>`.
     pub fn lines(self) -> Vec<String> {
-        self.text.lines().map(|line| line.to_string()).collect()
+        self.text().lines().map(|line| line.to_string()).collect()
     }
 
     /// Current content divided into blocks by empty lines.
@@ -32,8 +32,7 @@ impl Reader {
     /// // ["a\nb", "c\nd"]
     /// ```
     pub fn split_on_empty_line(self) -> Vec<String> {
-        self.text
-            .replace("\r\n", "\n")
+        self.text()
             .split("\n\n")
             .map(|part| part.to_string())
             .collect()
@@ -89,8 +88,7 @@ impl Reader {
     where
         T: core::str::FromStr,
     {
-        self.text
-            .replace("\r\n", "\n")
+        self.text()
             .split("\n\n")
             .map(|part| match part.parse::<T>() {
                 Ok(value) => value,
@@ -141,7 +139,7 @@ impl Reader {
     where
         T: core::str::FromStr,
     {
-        self.text
+        self.text()
             .split(pattern)
             .map(|part| match part.parse::<T>() {
                 Ok(value) => value,
@@ -195,7 +193,7 @@ impl Reader {
     where
         T: core::str::FromStr,
     {
-        self.text
+        self.text()
             .lines()
             .map(|line| match line.parse::<T>() {
                 Ok(value) => value,
@@ -246,7 +244,7 @@ impl Reader {
     /// // [Example { a: 1, b: 2 }, Example { a: 3, b: 4 }]
     /// ```
     pub fn parse_lines<T>(self, f: fn(&str) -> T) -> Vec<T> {
-        self.text.lines().map(f).collect()
+        self.text().lines().map(f).collect()
     }
 }
 
